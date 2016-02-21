@@ -1,0 +1,28 @@
+{
+		"name": "egen/message-bus",
+		"type": "library",
+		"require": {
+				"php": ">=5.5",
+				"nette/di": "~2.3",
+				"nette/utils": "~2.3",
+				"simple-bus/message-bus": "~2.2"
+		},
+		"require-dev": {
+				"nette/tester": "~1.7"
+		},
+		"authors": [
+				{
+						"name": "Jiří Novák",
+						"email": "novak@egen.cz"
+				}
+		],
+		"autoload": {
+				"psr-0": {
+						"eGen\\MessageBus": "src/"
+				},
+				"classmap": [
+						"src/eGen/MessageBus/exceptions.php"
+				]
+		},
+		"minimum-stability": "stable"
+}
