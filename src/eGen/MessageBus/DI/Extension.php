@@ -22,7 +22,7 @@ class Extension extends CompilerExtension
 	/** @var array */
 	public $defaults = array(
 		'messageBus' => MessageBus\MessageBus::class,
-		'commandNameResolver' => ClassBasedNameResolver::class,
+		'messageNameResolver' => ClassBasedNameResolver::class,
 		'handlers' => [],
 		'middlewares' => [
 			'before' => [],
@@ -32,7 +32,7 @@ class Extension extends CompilerExtension
 	);
 
 	/** @var array */
-	private $commandMap = [];
+	private $messages = [];
 
 	public function loadConfiguration()
 	{
@@ -48,11 +48,11 @@ class Extension extends CompilerExtension
 				->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix('messageHandlers'))
-				->setClass(CallableResolver\CallableMap::class, [$this->commandMap, '@' . $this->prefix('callableResolver')])
+				->setClass(CallableResolver\CallableMap::class, [$this->messages, '@' . $this->prefix('callableResolver')])
 				->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix('handlerResolver'))
-				->setClass(NameBasedMessageHandlerResolver::class, [new Statement($config['commandNameResolver']), '@' . $this->prefix('messageHandlers')])
+				->setClass(NameBasedMessageHandlerResolver::class, [new Statement($config['messageNameResolver']), '@' . $this->prefix('messageHandlers')])
 				->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix('messageBus'))
@@ -76,7 +76,7 @@ class Extension extends CompilerExtension
 
 		$def = $builder->getDefinition($this->prefix('messageHandlers'));
 		$args = $def->getFactory()->arguments;
-		$args[0] = $this->commandMap;
+		$args[0] = $this->messages;
 		$def->setArguments($args);
 	}
 
@@ -90,9 +90,9 @@ class Extension extends CompilerExtension
 				is_string($handler) ? new Nette\DI\Statement($handler) : $handler
 			));
 
-			list($handlerClass) = (array) $builder->normalizeEntity($def->factory->entity);
-			if (class_exists($handlerClass)) {
-				$def->class = $handlerClass;
+			list($class) = (array) $builder->normalizeEntity($def->factory->entity);
+			if (class_exists($class)) {
+				$def->class = $class;
 			}
 
 			$def->addTag(self::TAG_HANDLER);
@@ -148,13 +148,13 @@ class Extension extends CompilerExtension
 			}
 
 			$parameters = $method->getParameters();
-			$commandName = $parameters[0]->className;
+			$message = $parameters[0]->className;
 
-			if(isset($this->commandMap[$commandName])) {
-				throw new MessageBus\MultipleHandlersFoundException('There are multiple handlers for query ' . $commandName . '. There must be only one!');
+			if(isset($this->messages[$message])) {
+				throw new MessageBus\MultipleHandlersFoundException('There are multiple handlers for message ' . $message . '. There must be only one!');
 			}
 
-			$this->commandMap[$commandName] = "$serviceName::$method->name";
+			$this->messages[$message] = "$serviceName::$method->name";
 		}
 	}
 
