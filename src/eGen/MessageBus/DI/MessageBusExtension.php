@@ -14,7 +14,7 @@ use SimpleBus\Message\Handler\DelegatesToMessageHandlerMiddleware;
 use SimpleBus\Message\Handler\Resolver\NameBasedMessageHandlerResolver;
 use SimpleBus\Message\CallableResolver\ServiceLocatorAwareCallableResolver;
 
-class Extension extends CompilerExtension
+class MessageBusExtension extends CompilerExtension
 {
 
 	const TAG_HANDLER = 'bus.handler';

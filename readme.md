@@ -6,7 +6,7 @@ Balíček nainstalujeme přes composer `egen/message-bus`.
 Do config.neon přidáme nové rozšíření, které bude dostupné klasicky přes DI Container.
 ```yaml
 extensions:
-    commandbus: eGen\MessageBus\DI\Extension
+    commandbus: eGen\MessageBus\DI\MessageBusExtension
 ```
 ## Používání
 Do konfiguračního souboru je třeba zaregistrovat nějaký `MessageHandler`, který bude `Message` zpracovávat. Zaregistrovat jej lze dvěma způsoby. První způsob je vložením jej do sekce services a přidáním tagu `bus.handler`.
