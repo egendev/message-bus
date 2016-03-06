@@ -5,31 +5,59 @@ namespace eGen\MessageBus\DI;
 use Nette;
 use Nette\Reflection;
 use Nette\DI\Statement;
+use Nette\DI\Config\Helpers;
 use Nette\DI\ContainerBuilder;
 use Nette\DI\CompilerExtension;
-use eGen\MessageBus;
+use eGen\MessageBus\ServiceLocator;
 use SimpleBus\Message\CallableResolver;
 use SimpleBus\Message\Name\ClassBasedNameResolver;
 use SimpleBus\Message\Handler\DelegatesToMessageHandlerMiddleware;
 use SimpleBus\Message\Handler\Resolver\NameBasedMessageHandlerResolver;
 use SimpleBus\Message\CallableResolver\ServiceLocatorAwareCallableResolver;
+use SimpleBus\Message\Subscriber\NotifiesMessageSubscribersMiddleware;
+use SimpleBus\Message\Subscriber\Resolver\NameBasedMessageSubscriberResolver;
 
 class MessageBusExtension extends CompilerExtension
 {
 
-	const TAG_HANDLER = 'bus.handler';
+	const TAG_HANDLER = 'handler';
+
+	const TAG_SUBSCRIBER = 'subscriber';
+
+	const COMMANDS = 'commands';
+
+	const EVENTS = 'events';
 
 	/** @var array */
-	public $defaults = array(
-		'messageBus' => MessageBus\MessageBus::class,
-		'messageNameResolver' => ClassBasedNameResolver::class,
+	private $defaults = [
+		'buses' => []
+	];
+
+	/** @var array */
+	private $busDefaults = [
+		'class' => NULL,
+		'resolve' => self::COMMANDS,
 		'handlers' => [],
 		'middlewares' => [
 			'before' => [],
 			'after' => []
 		],
-		'autowire' => TRUE
-	);
+		'autowire' => TRUE,
+		'subscribers' => []
+	];
+
+	private $classes = [
+		self::COMMANDS => [
+			'callableResolver' => CallableResolver\CallableMap::class,
+			'messageResolver' => NameBasedMessageHandlerResolver::class,
+			'middleware' => DelegatesToMessageHandlerMiddleware::class
+		],
+		self::EVENTS => [
+			'callableResolver' => CallableResolver\CallableCollection::class,
+			'messageResolver' => NameBasedMessageSubscriberResolver::class,
+			'middleware' => NotifiesMessageSubscribersMiddleware::class
+		]
+	];
 
 	/** @var array */
 	private $messages = [];
@@ -37,30 +65,42 @@ class MessageBusExtension extends CompilerExtension
 	public function loadConfiguration()
 	{
 		$builder = $this->getContainerBuilder();
-		$config = $this->getConfig($this->defaults);
 
 		$builder->addDefinition($this->prefix('serviceLocator'))
-				->setClass(MessageBus\ServiceLocator::class)
-				->setAutowired(FALSE);
+			->setClass(ServiceLocator::class)
+			->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix('callableResolver'))
-				->setClass(ServiceLocatorAwareCallableResolver::class, [['@' . $this->prefix('serviceLocator'), 'get']])
+			->setClass(ServiceLocatorAwareCallableResolver::class, [['@' . $this->prefix('serviceLocator'), 'get']])
+			->setAutowired(FALSE);
+
+		$config = Helpers::merge($this->getConfig(), $this->defaults);
+
+		foreach($config['buses'] as $key => &$bus) {
+			$bus = Helpers::merge($bus, $this->busDefaults);
+			$this->validateBusConfig($bus);
+
+			$builder->addDefinition($this->prefix($key . '.messageHandlers'))
+				->setClass($this->classes[$bus['resolve']]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
 				->setAutowired(FALSE);
 
-		$builder->addDefinition($this->prefix('messageHandlers'))
-				->setClass(CallableResolver\CallableMap::class, [$this->messages, '@' . $this->prefix('callableResolver')])
-				->setAutowired(FALSE);
+			$builder->addDefinition($this->prefix($key . '.handlerResolver'))
+				->setClass($this->classes[$bus['resolve']]['messageResolver'], [
+					new Statement(ClassBasedNameResolver::class),
+					'@' . $this->prefix($key . '.messageHandlers')
+				])->setAutowired(FALSE);
 
-		$builder->addDefinition($this->prefix('handlerResolver'))
-				->setClass(NameBasedMessageHandlerResolver::class, [new Statement($config['messageNameResolver']), '@' . $this->prefix('messageHandlers')])
-				->setAutowired(FALSE);
+			$builder->addDefinition($this->prefix($key . '.bus'))
+				->setClass($bus['class'])
+				->addSetup('appendMiddleware', [new Statement(
+					$this->classes[$bus['resolve']]['middleware'],
+					['@' . $this->prefix($key . '.handlerResolver')]
+				)]);
+		}
 
-		$builder->addDefinition($this->prefix('messageBus'))
-				->setClass($config['messageBus'])
-				->addSetup('appendMiddleware', [new Statement(DelegatesToMessageHandlerMiddleware::class, ['@' . $this->prefix('handlerResolver')])]);
-
-		$this->resolveMiddlewares($config, $builder);
-		$this->resolveHandlers($config, $builder);
+		$this->configureMiddlewares($config, $builder);
+		$this->configureResolvers($config, $builder);
+		$this->config = $config;
 	}
 
 
@@ -68,51 +108,82 @@ class MessageBusExtension extends CompilerExtension
 	{
 		$builder = $this->getContainerBuilder();
 
-		foreach (array_keys($builder->findByTag(self::TAG_HANDLER)) as $serviceName) {
-			$def = $builder->getDefinition($serviceName);
-			$this->analyzeHandlerClass($def->getClass(), $serviceName);
-			$def->setAutowired(isset($def->autowired) ? $def->autowired : $this->defaults['autowire']);
-		}
-
-		$def = $builder->getDefinition($this->prefix('messageHandlers'));
-		$args = $def->getFactory()->arguments;
-		$args[0] = $this->messages;
-		$def->setArguments($args);
-	}
-
-	private function resolveHandlers(array $config, ContainerBuilder $builder)
-	{
-		Nette\Utils\Validators::assertField($config, 'handlers', 'array');
-		foreach ($config['handlers'] as $handler) {
-			$def = $builder->addDefinition($this->prefix('handler.' . md5(Nette\Utils\Json::encode($handler))));
-
-			list($def->factory) = Nette\DI\Compiler::filterArguments(array(
-				is_string($handler) ? new Nette\DI\Statement($handler) : $handler
-			));
-
-			list($class) = (array) $builder->normalizeEntity($def->factory->entity);
-			if (class_exists($class)) {
-				$def->class = $class;
+		foreach($this->config['buses'] as $key => $bus) {
+			$services = $builder->findByTag($this->getTagByBusResolve($key, $bus['resolve']));
+			foreach (array_keys($services) as $serviceName) {
+				$def = $builder->getDefinition($serviceName);
+				if($bus['resolve'] == self::EVENTS) {
+					$this->analyzeSubscriberClass($def->getClass(), $serviceName, $key);
+				} else {
+					$this->analyzeHandlerClass($def->getClass(), $serviceName, $key);
+				}
+				$def->setAutowired(isset($def->autowired) ? $def->autowired : $bus['autowire']);
 			}
 
-			$def->addTag(self::TAG_HANDLER);
+			$def = $builder->getDefinition($this->prefix($key . '.messageHandlers'));
+			$args = $def->getFactory()->arguments;
+			$args[0] = isset($this->messages[$key]) ? $this->messages[$key]: [];
+			$def->setArguments($args);
 		}
 	}
 
-	private function resolveMiddlewares(array $config, ContainerBuilder $builder)
+	private function validateBusConfig($config)
 	{
-		$messageBus = $builder->getDefinition($this->prefix('messageBus'));
+		$this->validateConfig($this->busDefaults, $config);
 
-		Nette\Utils\Validators::assertField($config['middlewares'], 'before', 'array');
-		foreach ($config['middlewares']['before'] as $middleware) {
-			$def = $this->getMiddlewareDefinition($middleware, $builder);
-			$messageBus->addSetup('prependMiddleware', [$def]);
+		if($config['resolve'] == self::EVENTS) {
+			if(count($config['handlers'])) {
+				throw new Nette\Utils\AssertionException('Bus resolving "' . self::EVENTS . '" cannot contain field named handlers.');
+			}
+			return TRUE;
+		} elseif($config['resolve'] == self::COMMANDS) {
+			if(count($config['subscribers'])) {
+				throw new Nette\Utils\AssertionException('Bus resolving "' . self::COMMANDS . '" cannot contain field named subscribers.');
+			}
+			return TRUE;
 		}
 
-		Nette\Utils\Validators::assertField($config['middlewares'], 'after', 'array');
-		foreach ($config['middlewares']['after'] as $middleware) {
-			$def = $this->getMiddlewareDefinition($middleware, $builder);
-			$messageBus->addSetup('appendMiddleware', [$def]);
+		throw new Nette\Utils\AssertionException('Unknown resolve value named "' . $config['resolve'] . '".');
+	}
+
+	private function configureMiddlewares(array $config, ContainerBuilder $builder)
+	{
+		foreach($config['buses'] as $key => $bus) {
+			$messageBus = $builder->getDefinition($this->prefix($key . '.bus'));
+
+			Nette\Utils\Validators::assertField($bus['middlewares'], 'before', 'array');
+			foreach ($bus['middlewares']['before'] as $middleware) {
+				$def = $this->getMiddlewareDefinition($middleware, $builder);
+				$messageBus->addSetup('prependMiddleware', [$def]);
+			}
+
+			Nette\Utils\Validators::assertField($bus['middlewares'], 'after', 'array');
+			foreach ($bus['middlewares']['after'] as $middleware) {
+				$def = $this->getMiddlewareDefinition($middleware, $builder);
+				$messageBus->addSetup('appendMiddleware', [$def]);
+			}
+		}
+	}
+
+	private function configureResolvers(array $config, ContainerBuilder $builder)
+	{
+		foreach($config['buses'] as $key => $bus) {
+			$type = $bus['resolve'] == self::EVENTS ? 'subscribers' : 'handlers';
+			Nette\Utils\Validators::assertField($bus, $type, 'array');
+			foreach ($bus[$type] as $resolver) {
+				$def = $builder->addDefinition($this->prefix($key . '.' . md5(Nette\Utils\Json::encode($resolver))));
+
+				list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+					is_string($resolver) ? new Nette\DI\Statement($resolver) : $resolver
+				));
+
+				list($class) = (array) $builder->normalizeEntity($def->factory->entity);
+				if (class_exists($class)) {
+					$def->class = $class;
+				}
+
+				$def->addTag($this->getTagByBusResolve($key, $bus['resolve']));
+			}
 		}
 	}
 
@@ -134,7 +205,7 @@ class MessageBusExtension extends CompilerExtension
 		return $def;
 	}
 
-	private function analyzeHandlerClass($className, $serviceName)
+	private function analyzeHandlerClass($className, $serviceName, $bus)
 	{
 		$ref = new Reflection\ClassType($className);
 
@@ -150,12 +221,45 @@ class MessageBusExtension extends CompilerExtension
 			$parameters = $method->getParameters();
 			$message = $parameters[0]->className;
 
-			if(isset($this->messages[$message])) {
-				throw new MessageBus\MultipleHandlersFoundException('There are multiple handlers for message ' . $message . '. There must be only one!');
+			if(isset($this->messages[$bus][$message])) {
+				throw new MultipleHandlersFoundException(
+					'There are multiple handlers for message ' . $message . '. There must be only one!'
+				);
 			}
 
-			$this->messages[$message] = "$serviceName::$method->name";
+			$this->messages[$bus][$message] = "$serviceName::$method->name";
 		}
+	}
+
+	private function analyzeSubscriberClass($className, $serviceName, $bus)
+	{
+		$ref = new Reflection\ClassType($className);
+
+		foreach($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+			if(strpos($method->getName(), '__') === 0) {
+				continue;
+			}
+
+			if(count($method->getParameters()) !== 1) {
+				continue;
+			}
+
+			$parameters = $method->getParameters();
+			$message = $parameters[0]->className;
+
+			$this->messages[$bus][$message][] = "$serviceName::$method->name";
+		}
+	}
+
+	private function getTagByBusResolve($bus, $resolve)
+	{
+		if($resolve == self::COMMANDS) {
+			return $bus . '.' . self::TAG_HANDLER;
+		} elseif($resolve == self::EVENTS) {
+			return $bus . '.' . self::TAG_SUBSCRIBER;
+		}
+
+		throw new Nette\Utils\AssertionException('Unknown resolve value named "' . $resolve . '".');
 	}
 
 }
