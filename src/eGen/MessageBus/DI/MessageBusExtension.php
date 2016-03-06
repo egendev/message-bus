@@ -11,6 +11,7 @@ use Nette\DI\CompilerExtension;
 use eGen\MessageBus\ServiceLocator;
 use SimpleBus\Message\CallableResolver;
 use SimpleBus\Message\Name\ClassBasedNameResolver;
+use eGen\MessageBus\MultipleHandlersFoundException;
 use SimpleBus\Message\Handler\DelegatesToMessageHandlerMiddleware;
 use SimpleBus\Message\Handler\Resolver\NameBasedMessageHandlerResolver;
 use SimpleBus\Message\CallableResolver\ServiceLocatorAwareCallableResolver;
