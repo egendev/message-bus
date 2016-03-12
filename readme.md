@@ -8,6 +8,9 @@ Requirements
 
 eGen/MessageBus requires PHP 5.5 or higher.
 
+- [nette/di](https://github.com/nette/di) >= 2.3
+- [nette/utils](https://github.com/nette/utils) >= 2.3
+
 
 Installation
 ------------
