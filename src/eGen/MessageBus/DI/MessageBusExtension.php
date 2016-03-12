@@ -105,7 +105,7 @@ class MessageBusExtension extends CompilerExtension
 			$def->addSetup('appendMiddleware', [new Statement(
 				$this->classes[$bus['resolves']]['middleware'],
 				['@' . $this->prefix($key . '.handlerResolver')]
-			)]);
+			)])->setAutowired($bus['autowire']);
 		}
 
 		$this->configureMiddlewares($config, $builder);
@@ -127,7 +127,7 @@ class MessageBusExtension extends CompilerExtension
 				} else {
 					$this->analyzeHandlerClass($def->getClass(), $serviceName, $key);
 				}
-				$def->setAutowired(isset($def->autowired) ? $def->autowired : $bus['autowire']);
+				$def->setAutowired(FALSE);
 			}
 
 			$def = $builder->getDefinition($this->prefix($key . '.messageHandlers'));
