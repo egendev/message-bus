@@ -37,14 +37,14 @@ class MessageBusExtension extends CompilerExtension
 	/** @var array */
 	private $busDefaults = [
 		'class' => NULL,
-		'resolve' => self::COMMANDS,
+		'resolves' => self::COMMANDS,
 		'handlers' => [],
+		'subscribers' => [],
 		'middlewares' => [
 			'before' => [],
 			'after' => []
 		],
-		'autowire' => TRUE,
-		'subscribers' => []
+		'autowire' => TRUE
 	];
 
 	private $classes = [
@@ -82,11 +82,11 @@ class MessageBusExtension extends CompilerExtension
 			$this->validateBusConfig($bus);
 
 			$builder->addDefinition($this->prefix($key . '.messageHandlers'))
-				->setClass($this->classes[$bus['resolve']]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
+				->setClass($this->classes[$bus['resolves']]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
 				->setAutowired(FALSE);
 
 			$builder->addDefinition($this->prefix($key . '.handlerResolver'))
-				->setClass($this->classes[$bus['resolve']]['messageResolver'], [
+				->setClass($this->classes[$bus['resolves']]['messageResolver'], [
 					new Statement(ClassBasedNameResolver::class),
 					'@' . $this->prefix($key . '.messageHandlers')
 				])->setAutowired(FALSE);
@@ -94,7 +94,7 @@ class MessageBusExtension extends CompilerExtension
 			$builder->addDefinition($this->prefix($key . '.bus'))
 				->setClass($bus['class'])
 				->addSetup('appendMiddleware', [new Statement(
-					$this->classes[$bus['resolve']]['middleware'],
+					$this->classes[$bus['resolves']]['middleware'],
 					['@' . $this->prefix($key . '.handlerResolver')]
 				)]);
 		}
@@ -110,10 +110,10 @@ class MessageBusExtension extends CompilerExtension
 		$builder = $this->getContainerBuilder();
 
 		foreach($this->config['buses'] as $key => $bus) {
-			$services = $builder->findByTag($this->getTagByBusResolve($key, $bus['resolve']));
+			$services = $builder->findByTag($this->getTagForBus($key, $bus['resolves']));
 			foreach (array_keys($services) as $serviceName) {
 				$def = $builder->getDefinition($serviceName);
-				if($bus['resolve'] == self::EVENTS) {
+				if($bus['resolves'] == self::EVENTS) {
 					$this->analyzeSubscriberClass($def->getClass(), $serviceName, $key);
 				} else {
 					$this->analyzeHandlerClass($def->getClass(), $serviceName, $key);
@@ -132,19 +132,19 @@ class MessageBusExtension extends CompilerExtension
 	{
 		$this->validateConfig($this->busDefaults, $config);
 
-		if($config['resolve'] == self::EVENTS) {
+		if($config['resolves'] == self::EVENTS) {
 			if(count($config['handlers'])) {
 				throw new Nette\Utils\AssertionException('Bus resolving "' . self::EVENTS . '" cannot contain field named handlers.');
 			}
 			return TRUE;
-		} elseif($config['resolve'] == self::COMMANDS) {
+		} elseif($config['resolves'] == self::COMMANDS) {
 			if(count($config['subscribers'])) {
 				throw new Nette\Utils\AssertionException('Bus resolving "' . self::COMMANDS . '" cannot contain field named subscribers.');
 			}
 			return TRUE;
 		}
 
-		throw new Nette\Utils\AssertionException('Unknown resolve value named "' . $config['resolve'] . '".');
+		throw new Nette\Utils\AssertionException('Unknown value named "' . $config['resolves'] . '" in bus config.');
 	}
 
 	private function configureMiddlewares(array $config, ContainerBuilder $builder)
@@ -169,7 +169,7 @@ class MessageBusExtension extends CompilerExtension
 	private function configureResolvers(array $config, ContainerBuilder $builder)
 	{
 		foreach($config['buses'] as $key => $bus) {
-			$type = $bus['resolve'] == self::EVENTS ? 'subscribers' : 'handlers';
+			$type = $bus['resolves'] == self::EVENTS ? 'subscribers' : 'handlers';
 			Nette\Utils\Validators::assertField($bus, $type, 'array');
 			foreach ($bus[$type] as $resolver) {
 				$def = $builder->addDefinition($this->prefix($key . '.' . md5(Nette\Utils\Json::encode($resolver))));
@@ -183,7 +183,7 @@ class MessageBusExtension extends CompilerExtension
 					$def->class = $class;
 				}
 
-				$def->addTag($this->getTagByBusResolve($key, $bus['resolve']));
+				$def->addTag($this->getTagForBus($key, $bus['resolves']));
 			}
 		}
 	}
@@ -252,15 +252,15 @@ class MessageBusExtension extends CompilerExtension
 		}
 	}
 
-	private function getTagByBusResolve($bus, $resolve)
+	private function getTagForBus($bus, $resolves)
 	{
-		if($resolve == self::COMMANDS) {
+		if($resolves == self::COMMANDS) {
 			return $bus . '.' . self::TAG_HANDLER;
-		} elseif($resolve == self::EVENTS) {
+		} elseif($resolves == self::EVENTS) {
 			return $bus . '.' . self::TAG_SUBSCRIBER;
 		}
 
-		throw new Nette\Utils\AssertionException('Unknown resolve value named "' . $resolve . '".');
+		throw new Nette\Utils\AssertionException('Unknown value named "' . $resolves . '" in bus config.');
 	}
 
 }
