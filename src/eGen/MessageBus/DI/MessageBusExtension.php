@@ -91,12 +91,21 @@ class MessageBusExtension extends CompilerExtension
 					'@' . $this->prefix($key . '.messageHandlers')
 				])->setAutowired(FALSE);
 
-			$builder->addDefinition($this->prefix($key . '.bus'))
-				->setClass($bus['class'])
-				->addSetup('appendMiddleware', [new Statement(
-					$this->classes[$bus['resolves']]['middleware'],
-					['@' . $this->prefix($key . '.handlerResolver')]
-				)]);
+			$def = $builder->addDefinition($this->prefix($key . '.bus'));
+
+			list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+				is_string($bus['class']) ? new Nette\DI\Statement($bus['class']) : $bus['class']
+			));
+
+			list($class) = (array) $builder->normalizeEntity($def->factory->entity);
+			if (class_exists($class)) {
+				$def->class = $class;
+			}
+
+			$def->addSetup('appendMiddleware', [new Statement(
+				$this->classes[$bus['resolves']]['middleware'],
+				['@' . $this->prefix($key . '.handlerResolver')]
+			)]);
 		}
 
 		$this->configureMiddlewares($config, $builder);
