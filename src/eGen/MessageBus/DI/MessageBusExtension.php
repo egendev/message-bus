@@ -163,13 +163,13 @@ class MessageBusExtension extends CompilerExtension
 
 			Nette\Utils\Validators::assertField($bus['middlewares'], 'before', 'array');
 			foreach ($bus['middlewares']['before'] as $middleware) {
-				$def = $this->getMiddlewareDefinition($middleware, $builder);
+				$def = $this->getMiddlewareDefinition($middleware, $builder, $key);
 				$messageBus->addSetup('prependMiddleware', [$def]);
 			}
 
 			Nette\Utils\Validators::assertField($bus['middlewares'], 'after', 'array');
 			foreach ($bus['middlewares']['after'] as $middleware) {
-				$def = $this->getMiddlewareDefinition($middleware, $builder);
+				$def = $this->getMiddlewareDefinition($middleware, $builder, $key);
 				$messageBus->addSetup('appendMiddleware', [$def]);
 			}
 		}
@@ -181,7 +181,7 @@ class MessageBusExtension extends CompilerExtension
 			$type = $bus['resolves'] == self::EVENTS ? 'subscribers' : 'handlers';
 			Nette\Utils\Validators::assertField($bus, $type, 'array');
 			foreach ($bus[$type] as $resolver) {
-				$def = $builder->addDefinition($this->prefix($key . '.' . md5(Nette\Utils\Json::encode($resolver))));
+				$def = $builder->addDefinition($this->prefix($key . '.' . $type . '.' . md5(Nette\Utils\Json::encode($resolver))));
 
 				list($def->factory) = Nette\DI\Compiler::filterArguments(array(
 					is_string($resolver) ? new Nette\DI\Statement($resolver) : $resolver
@@ -197,9 +197,9 @@ class MessageBusExtension extends CompilerExtension
 		}
 	}
 
-	private function getMiddlewareDefinition($middleware, ContainerBuilder $builder)
+	private function getMiddlewareDefinition($middleware, ContainerBuilder $builder, $bus)
 	{
-		$def = $builder->addDefinition($this->prefix('middleware.' . md5(Nette\Utils\Json::encode($middleware))));
+		$def = $builder->addDefinition($this->prefix($bus . '.middleware.' . md5(Nette\Utils\Json::encode($middleware))));
 
 		list($def->factory) = Nette\DI\Compiler::filterArguments(array(
 			is_string($middleware) ? new Nette\DI\Statement($middleware) : $middleware
