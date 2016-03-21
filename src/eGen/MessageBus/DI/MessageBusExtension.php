@@ -5,58 +5,59 @@ namespace eGen\MessageBus\DI;
 use Nette;
 use Nette\Reflection;
 use Nette\DI\Statement;
+use eGen\MessageBus\Bus;
 use Nette\DI\Config\Helpers;
 use Nette\DI\ContainerBuilder;
 use Nette\DI\CompilerExtension;
+use SimpleBus\Message\Handler;
+use SimpleBus\Message\Subscriber;
 use eGen\MessageBus\ServiceLocator;
 use SimpleBus\Message\CallableResolver;
 use SimpleBus\Message\Name\ClassBasedNameResolver;
 use eGen\MessageBus\MultipleHandlersFoundException;
-use SimpleBus\Message\Handler\DelegatesToMessageHandlerMiddleware;
-use SimpleBus\Message\Handler\Resolver\NameBasedMessageHandlerResolver;
-use SimpleBus\Message\CallableResolver\ServiceLocatorAwareCallableResolver;
-use SimpleBus\Message\Subscriber\NotifiesMessageSubscribersMiddleware;
-use SimpleBus\Message\Subscriber\Resolver\NameBasedMessageSubscriberResolver;
+use eGen\MessageBus\UnsupportedBusException;
 
 class MessageBusExtension extends CompilerExtension
 {
 
+	const COMMAND_BUS = 'commandBus';
+	const EVENT_BUS = 'eventBus';
+
 	const TAG_HANDLER = 'handler';
-
 	const TAG_SUBSCRIBER = 'subscriber';
-
-	const COMMANDS = 'commands';
-
-	const EVENTS = 'events';
 
 	/** @var array */
 	private $defaults = [
-		'buses' => []
-	];
-
-	/** @var array */
-	private $busDefaults = [
-		'class' => NULL,
-		'resolves' => self::COMMANDS,
-		'handlers' => [],
-		'subscribers' => [],
-		'middlewares' => [
-			'before' => [],
-			'after' => []
+		self::COMMAND_BUS => [
+			'bus' => Bus\CommandBus::class,
+			'handlers' => [],
+			'middlewares' => [
+				'before' => [],
+				'after' => []
+			],
+			'autowire' => TRUE
 		],
-		'autowire' => TRUE
+		self::EVENT_BUS => [
+			'bus' => Bus\EventBus::class,
+			'subscribers' => [],
+			'middlewares' => [
+				'before' => [],
+				'after' => []
+			],
+			'autowire' => TRUE
+		]
 	];
 
 	private $classes = [
-		self::COMMANDS => [
+		self::COMMAND_BUS => [
 			'callableResolver' => CallableResolver\CallableMap::class,
-			'messageResolver' => NameBasedMessageHandlerResolver::class,
-			'middleware' => DelegatesToMessageHandlerMiddleware::class
+			'messageResolver' => Handler\Resolver\NameBasedMessageHandlerResolver::class,
+			'middleware' => Handler\DelegatesToMessageHandlerMiddleware::class
 		],
-		self::EVENTS => [
+		self::EVENT_BUS => [
 			'callableResolver' => CallableResolver\CallableCollection::class,
-			'messageResolver' => NameBasedMessageSubscriberResolver::class,
-			'middleware' => NotifiesMessageSubscribersMiddleware::class
+			'messageResolver' => Subscriber\Resolver\NameBasedMessageSubscriberResolver::class,
+			'middleware' => Subscriber\NotifiesMessageSubscribersMiddleware::class
 		]
 	];
 
@@ -72,132 +73,127 @@ class MessageBusExtension extends CompilerExtension
 			->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix('callableResolver'))
-			->setClass(ServiceLocatorAwareCallableResolver::class, [['@' . $this->prefix('serviceLocator'), 'get']])
-			->setAutowired(FALSE);
+			->setClass(CallableResolver\ServiceLocatorAwareCallableResolver::class, [
+				['@' . $this->prefix('serviceLocator'), 'get']
+			])->setAutowired(FALSE);
 
 		$config = Helpers::merge($this->getConfig(), $this->defaults);
 
-		foreach($config['buses'] as $key => &$bus) {
-			$bus = Helpers::merge($bus, $this->busDefaults);
-			$this->validateBusConfig($bus);
-
-			$builder->addDefinition($this->prefix($key . '.messageHandlers'))
-				->setClass($this->classes[$bus['resolves']]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
-				->setAutowired(FALSE);
-
-			$builder->addDefinition($this->prefix($key . '.handlerResolver'))
-				->setClass($this->classes[$bus['resolves']]['messageResolver'], [
-					new Statement(ClassBasedNameResolver::class),
-					'@' . $this->prefix($key . '.messageHandlers')
-				])->setAutowired(FALSE);
-
-			$def = $builder->addDefinition($this->prefix($key . '.bus'));
-
-			list($def->factory) = Nette\DI\Compiler::filterArguments(array(
-				is_string($bus['class']) ? new Nette\DI\Statement($bus['class']) : $bus['class']
-			));
-
-			list($class) = (array) $builder->normalizeEntity($def->factory->entity);
-			if (class_exists($class)) {
-				$def->class = $class;
-			}
-
-			$def->addSetup('appendMiddleware', [new Statement(
-				$this->classes[$bus['resolves']]['middleware'],
-				['@' . $this->prefix($key . '.handlerResolver')]
-			)])->setAutowired($bus['autowire']);
+		if (array_key_exists(self::COMMAND_BUS, $this->getConfig())) {
+			$this->configureBus($builder, $config[self::COMMAND_BUS], self::COMMAND_BUS);
 		}
 
-		$this->configureMiddlewares($config, $builder);
-		$this->configureResolvers($config, $builder);
+		if (array_key_exists(self::EVENT_BUS, $this->getConfig())) {
+			$this->configureBus($builder, $config[self::EVENT_BUS], self::EVENT_BUS);
+		}
+
 		$this->config = $config;
 	}
 
-
 	public function beforeCompile()
 	{
+		$buses = [self::COMMAND_BUS, self::EVENT_BUS];
 		$builder = $this->getContainerBuilder();
 
-		foreach($this->config['buses'] as $key => $bus) {
-			$services = $builder->findByTag($this->getTagForBus($key, $bus['resolves']));
+		foreach($buses as $bus) {
+			$services = $builder->findByTag($this->getTagForResolver($bus));
 			foreach (array_keys($services) as $serviceName) {
 				$def = $builder->getDefinition($serviceName);
-				if($bus['resolves'] == self::EVENTS) {
-					$this->analyzeSubscriberClass($def->getClass(), $serviceName, $key);
-				} else {
-					$this->analyzeHandlerClass($def->getClass(), $serviceName, $key);
+				if ($bus === self::COMMAND_BUS) {
+					$this->analyzeHandlerClass($def->getClass(), $serviceName, $bus);
+				} elseif($bus === self::EVENT_BUS) {
+					$this->analyzeSubscriberClass($def->getClass(), $serviceName, $bus);
 				}
 				$def->setAutowired(FALSE);
 			}
 
-			$def = $builder->getDefinition($this->prefix($key . '.messageHandlers'));
+			$def = $builder->getDefinition($this->prefix($bus . '.messageHandlers'));
 			$args = $def->getFactory()->arguments;
-			$args[0] = isset($this->messages[$key]) ? $this->messages[$key]: [];
+			$args[0] = isset($this->messages[$bus]) ? $this->messages[$bus] : [];
 			$def->setArguments($args);
 		}
 	}
 
-	private function validateBusConfig($config)
+	private function configureBus(ContainerBuilder $builder, array $config, $bus)
 	{
-		$this->validateConfig($this->busDefaults, $config);
+		$builder->addDefinition($this->prefix($bus . '.messageHandlers'))
+			->setClass($this->classes[$bus]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
+			->setAutowired(FALSE);
 
-		if($config['resolves'] == self::EVENTS) {
-			if(count($config['handlers'])) {
-				throw new Nette\Utils\AssertionException('Bus resolving "' . self::EVENTS . '" cannot contain field named handlers.');
-			}
-			return TRUE;
-		} elseif($config['resolves'] == self::COMMANDS) {
-			if(count($config['subscribers'])) {
-				throw new Nette\Utils\AssertionException('Bus resolving "' . self::COMMANDS . '" cannot contain field named subscribers.');
-			}
-			return TRUE;
+		$builder->addDefinition($this->prefix($bus . '.handlerResolver'))
+			->setClass($this->classes[$bus]['messageResolver'], [
+				new Statement(ClassBasedNameResolver::class),
+				'@' . $this->prefix($bus . '.messageHandlers')
+			])->setAutowired(FALSE);
+
+		$def = $builder->addDefinition($this->prefix($bus));
+
+		list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+			is_string($config['bus']) ? new Nette\DI\Statement($config['bus']) : $config['bus']
+		));
+
+		list($class) = (array)$builder->normalizeEntity($def->factory->entity);
+		if (class_exists($class)) {
+			$def->class = $class;
 		}
 
-		throw new Nette\Utils\AssertionException('Unknown value named "' . $config['resolves'] . '" in bus config.');
+		$def->addSetup('appendMiddleware', [new Statement(
+			$this->classes[$bus]['middleware'],
+			['@' . $this->prefix($bus . '.handlerResolver')]
+		)])->setAutowired($config['autowire']);
+
+		$this->configureMiddlewares($builder, $config, $bus);
+		$this->configureResolvers($builder, $config, $bus);
 	}
 
-	private function configureMiddlewares(array $config, ContainerBuilder $builder)
+	private function configureMiddlewares(ContainerBuilder $builder, array $config, $bus)
 	{
-		foreach($config['buses'] as $key => $bus) {
-			$messageBus = $builder->getDefinition($this->prefix($key . '.bus'));
+		Nette\Utils\Validators::assertField($config['middlewares'], 'before', 'array');
+		Nette\Utils\Validators::assertField($config['middlewares'], 'after', 'array');
 
-			Nette\Utils\Validators::assertField($bus['middlewares'], 'before', 'array');
-			foreach ($bus['middlewares']['before'] as $middleware) {
-				$def = $this->getMiddlewareDefinition($middleware, $builder, $key);
-				$messageBus->addSetup('prependMiddleware', [$def]);
-			}
+		$messageBus = $builder->getDefinition($this->prefix($bus));
 
-			Nette\Utils\Validators::assertField($bus['middlewares'], 'after', 'array');
-			foreach ($bus['middlewares']['after'] as $middleware) {
-				$def = $this->getMiddlewareDefinition($middleware, $builder, $key);
-				$messageBus->addSetup('appendMiddleware', [$def]);
-			}
+		foreach ($config['middlewares']['before'] as $middleware) {
+			$def = $this->getMiddlewareDefinition($builder, $middleware, $bus);
+			$messageBus->addSetup('prependMiddleware', [$def]);
 		}
-	}
 
-	private function configureResolvers(array $config, ContainerBuilder $builder)
-	{
-		foreach($config['buses'] as $key => $bus) {
-			$type = $bus['resolves'] == self::EVENTS ? 'subscribers' : 'handlers';
-			Nette\Utils\Validators::assertField($bus, $type, 'array');
-			foreach ($bus[$type] as $resolver) {
-				$def = $builder->addDefinition($this->prefix($key . '.' . $type . '.' . md5(Nette\Utils\Json::encode($resolver))));
-
-				list($def->factory) = Nette\DI\Compiler::filterArguments(array(
-					is_string($resolver) ? new Nette\DI\Statement($resolver) : $resolver
-				));
-
-				list($class) = (array) $builder->normalizeEntity($def->factory->entity);
-				if (class_exists($class)) {
-					$def->class = $class;
-				}
-
-				$def->addTag($this->getTagForBus($key, $bus['resolves']));
-			}
+		foreach ($config['middlewares']['after'] as $middleware) {
+			$def = $this->getMiddlewareDefinition($builder, $middleware, $bus);
+			$messageBus->addSetup('appendMiddleware', [$def]);
 		}
 	}
 
-	private function getMiddlewareDefinition($middleware, ContainerBuilder $builder, $bus)
+	private function configureResolvers(ContainerBuilder $builder, array $config, $bus)
+	{
+		$buses = [
+			self::COMMAND_BUS => 'handlers',
+			self::EVENT_BUS => 'subscribers'
+		];
+
+		if(!array_key_exists($bus, $buses)) {
+			throw new UnsupportedBusException('Bus with name "' . $bus . '" is not supported by this extension.');
+		}
+
+		Nette\Utils\Validators::assertField($config, $buses[$bus], 'array');
+
+		foreach ($config[$buses[$bus]] as $resolver) {
+			$def = $builder->addDefinition($this->prefix($bus . '.' . md5(Nette\Utils\Json::encode($resolver))));
+
+			list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+				is_string($resolver) ? new Nette\DI\Statement($resolver) : $resolver
+			));
+
+			list($class) = (array)$builder->normalizeEntity($def->factory->entity);
+			if (class_exists($class)) {
+				$def->class = $class;
+			}
+
+			$def->addTag($this->getTagForResolver($bus));
+		}
+	}
+
+	private function getMiddlewareDefinition(ContainerBuilder $builder, $middleware, $bus)
 	{
 		$def = $builder->addDefinition($this->prefix($bus . '.middleware.' . md5(Nette\Utils\Json::encode($middleware))));
 
@@ -261,15 +257,18 @@ class MessageBusExtension extends CompilerExtension
 		}
 	}
 
-	private function getTagForBus($bus, $resolves)
+	private function getTagForResolver($bus)
 	{
-		if($resolves == self::COMMANDS) {
-			return $bus . '.' . self::TAG_HANDLER;
-		} elseif($resolves == self::EVENTS) {
-			return $bus . '.' . self::TAG_SUBSCRIBER;
+		$buses = [
+			self::COMMAND_BUS => self::TAG_HANDLER,
+			self::EVENT_BUS => self::TAG_SUBSCRIBER
+		];
+
+		if(!array_key_exists($bus, $buses)) {
+			throw new UnsupportedBusException('Bus with name "' . $bus . '" is not supported by this extension.');
 		}
 
-		throw new Nette\Utils\AssertionException('Unknown value named "' . $resolves . '" in bus config.');
+		return $bus . '.' . $buses[$bus];
 	}
 
 }
