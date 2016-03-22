@@ -1,6 +1,8 @@
 {
 	"name": "egen/message-bus",
+	"description": "SimpleBus integration into Nette Framework",
 	"type": "library",
+	"license": "MIT",
 	"require": {
 		"php": ">=5.5",
 		"nette/di": "~2.3",
