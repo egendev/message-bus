@@ -137,11 +137,6 @@ class MessageBusExtension extends CompilerExtension
 			$def->class = $class;
 		}
 
-		$def->addSetup('appendMiddleware', [new Statement(
-			$this->classes[$bus]['middleware'],
-			['@' . $this->prefix($bus . '.handlerResolver')]
-		)])->setAutowired($config['autowire']);
-
 		$this->configureMiddlewares($builder, $config, $bus);
 		$this->configureResolvers($builder, $config, $bus);
 	}
@@ -155,8 +150,14 @@ class MessageBusExtension extends CompilerExtension
 
 		foreach ($config['middlewares']['before'] as $middleware) {
 			$def = $this->getMiddlewareDefinition($builder, $middleware, $bus);
-			$messageBus->addSetup('prependMiddleware', [$def]);
+			$messageBus->addSetup('appendMiddleware', [$def]);
 		}
+
+		$def = $builder->getDefinition($this->prefix($bus));
+		$def->addSetup('appendMiddleware', [new Statement(
+			$this->classes[$bus]['middleware'],
+			['@' . $this->prefix($bus . '.handlerResolver')]
+		)])->setAutowired($config['autowire']);
 
 		foreach ($config['middlewares']['after'] as $middleware) {
 			$def = $this->getMiddlewareDefinition($builder, $middleware, $bus);
