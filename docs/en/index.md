@@ -31,11 +31,7 @@ If you want to use CommandBus in your application you just need to add these two
 messageBus:
     commandBus:
 ```
-This will add new service `eGen\MessageBus\Bus\CommandBus` into your DI container. You can use your own CommandBus class without any problems. Your class must implement interface `SimpleBus\Message\Bus\MessageBus` and than you will be able to replace default `commandBus` class in configuration section.
-```yml
-messageBus:
-    commandBus:
-```
+
 Now you will need some handlers to resolve your commands. These handlers should be registered in your config.neon too. The most flexible and recommended way to add a handler is shown in example below.
 
 ```yml
