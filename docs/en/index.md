@@ -1,7 +1,8 @@
 # eGen/MessageBus
 
 [SimpleBus/MessageBus](https://github.com/SimpleBus/MessageBus) integration into Nette Framework.
-For more information and examples check [SimpleBus/MessageBus](http://simplebus.github.io/MessageBus/doc/command_bus.html) page.
+For more information and examples check original
+[MessageBus documentation](http://simplebus.github.io/MessageBus/doc/command_bus.html).
 
 ## Installation
 
@@ -20,8 +21,8 @@ extensions:
 
 ## Configuration and Usage
 
-This extension allows you to use CommandBus/EventBus in your application.
-The whole extension is ready to use without any advanced configuration.
+This extension allows you to use CommandBus/EventBus in your application
+and it's ready to use without any advanced configuration.
 
 ### Command bus
 
