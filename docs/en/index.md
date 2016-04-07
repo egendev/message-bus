@@ -115,9 +115,8 @@ EventBus resolves events, so you will need some subscriber to resolve your event
 
 ```yml
 services:
-    seo.subscriber:
-        class: App\Model\Subscribers\SeoMailListener
-        tags: [eventBus.subscriber]
+    - class: App\Model\Subscribers\SeoMailListener
+      tags: [eventBus.subscriber]
 ```
 
 Event subscriber is very similiar to command handler. Only class with public method(s).
