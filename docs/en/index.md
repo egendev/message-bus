@@ -1,7 +1,8 @@
 # eGen/MessageBus
 
 [SimpleBus/MessageBus](https://github.com/SimpleBus/MessageBus) integration into Nette Framework.
-For more information and examples check [SimpleBus/MessageBus](http://simplebus.github.io/MessageBus/doc/command_bus.html) page.
+For more information and examples check original
+[MessageBus documentation](http://simplebus.github.io/MessageBus/doc/command_bus.html).
 
 ## Installation
 
@@ -15,60 +16,91 @@ And then you should add the extension in your config.neon file.
 
 ```yml
 extensions:
-	messagebus: eGen\MessageBus\DI\MessageBusExtension
+    messagebus: eGen\MessageBus\DI\MessageBusExtension
 ```
 
 ## Configuration and Usage
 
-This extension allows you to use CommandBus/EventBus in your application.
-The whole extension is ready to use without any advanced configuration.
+This extension allows you to use CommandBus/EventBus in your application
+and it's ready to use without any advanced configuration.
 
-### CommandBus configuration
+### Command bus
 
 If you want to use CommandBus in your application you just need to add these two lines to your config.neon file.
 
 ```yml
 messageBus:
-	commandBus:
+    commandBus:
 ```
-This will add new service `eGen\MessageBus\Bus\CommandBus` into your DI container. You can use your own CommandBus class without any problems. Your class must implement interface `SimpleBus\Message\Bus\MessageBus` and than you will be able to replace default `commandBus` class in configuration section.
-```yml
-services:
-    commandBus: App\YourCommandBus
-messageBus:
-	commandBus:
-	    bus: @commandBus
-```
-Now you will need some handlers for resolving your commands. These handlers should be registered in your config.neon too. The most flexible and recommended way to add some handler is shown in example below.
+
+Now you will need some handlers to resolve your commands. These handlers should be registered in your config.neon too. The most flexible and recommended way to add a handler is shown in example below.
 
 ```yml
 services:
-    seo.handler:
-        class: App\Model\Handlers\SeoHandler
-        tags: [commandBus.handler]
+    - class: App\Model\Handlers\SeoHandler
+      tags: [commandBus.handler]
 ```
-If you tag the service with `commandBus.handler` tag, it will be automatically registered to your CommandBus.
-There are no specific requirements for your handler class. It's very similar with your command objects. You don't need to implement any interface or inherit from another class.
-
-### CommandBus usage
-
-We have already fully configured the CommandBus, we can just start creating a new command object and let the command bus handle it. Anywhere you want to send some command you just need to inject `eGen\MessageBus\Bus\CommandBus` service and handle your command very simply.
+If you tag the service as `commandBus.handler`, it will be automatically registered to your CommandBus.
+Handler class doesn't have to implement any interface or inherit from another class, it's just
+a class with public **public method(s) with type-hinted arguments**.
 
 ```php
 <?php
-class YourPresenter {
 
-    /** @var \eGen\MessageBus\Bus\CommandBus */
+namespace App\Model\Handlers;
+
+use App\Commands;
+
+class SeoHandler
+{
+
+    public function someHandleMethod(TurnOnSeo $command)
+    {
+        // Handle command
+    }
+
+}
+```
+
+Simplest command can look like this:
+```php
+<?php
+
+namespace App\Commands;
+
+class TurnOnSeo {}
+```
+
+Now you only need to create command instance.
+
+```php
+<?php
+
+use eGen\MessageBus\Bus\CommandBus;
+use App\Commands\TurnOnSeo;
+
+class SeoPresenter extends BasePresenter
+{
+
+    /** @var CommandBus */
     private $commandBus;
 
-    public function renderDefault() {
-        $this->commandBus->handle(new Commands\TurnOnSeo());
+    public function __construct(CommandBus $commandBus)
+    {
+        $this->commandBus = $commandBus;
     }
+
+
+    public function handleTurnOnSeo()
+    {
+        $this->commandBus->handle(new TurnOnSeo());
+    }
+
 }
 ```
 
 
-### EventBus configuration
+### Event bus
 
 Configuration and usage of EventBus is very similar to CommandBus.
 
@@ -77,45 +109,82 @@ messageBus:
 	eventBus:
 ```
 
-Default EventBus service `eGen\MessageBus\Bus\EventBus` will be added into your DI container.
+`eGen\MessageBus\Bus\EventBus` will be added into your DI container.
 
-EventBus resolves Events, so you will need some subscriber to resolve your event.
+EventBus resolves events, so you will need some subscriber to resolve your event.
 
 ```yml
 services:
-    seo.subscriber:
-        class: App\Model\Subscribers\SeoListener
-        tags: [eventBus.subscriber]
+    - class: App\Model\Subscribers\SeoMailListener
+      tags: [eventBus.subscriber]
 ```
 
-### EventBus usage
-Somewhere in your app...
+Event subscriber is very similiar to command handler. Only class with public method(s).
+
 ```php
 <?php
-class YourPresenter {
 
-    /** @var \eGen\MessageBus\Bus\EventBus */
+namespace App\Model\Subscribers;
+
+use App\Events\SeoWasTurnedOn;
+
+class SeoMailListener
+{
+
+    public function handle(SeoWasTurnedOn $event)
+    {
+        // Send mail to admin?
+    }
+
+}
+
+```
+
+Difference between command and event bus is intent. There can be only one
+handler fo each command. For event, you can have unlimited amount of subscribers.
+
+You can raise event anywhere, all you need to do is pass it to EventBus.
+
+```php
+<?php
+
+use eGen\MessageBus\Bus\EventBus;
+use App\Events\SeoWasTurnedOn;
+
+class SeoService
+{
+
+    /** @var EventBus */
     private $eventBus;
 
-    public function renderDefault() {
-        $this->eventBus->handle(new Events\SeoWasTurnedOn());
+    public function turnOn()
+    {
+        // You just turned on SEO! Lets make everyone know
+        $this->eventBus->handle(new SeoWasTurnedOn());
     }
+
 }
 ```
 
 ## Middlewares
-Each bus should have own middlewares, which will be executed before/after message is being handled.
+What if you wan't to wrap command handling in DB transaction, process it asynchronously, or create event log?
+MessageBus comes with handy pattern called [middlewares](http://simplebus.github.io/MessageBus/doc/command_bus.html#implementing-your-own-command-bus-middleware).
+
+There are several pre-made middlewares (logging, Doctrine transactions, ...)
+
+Each bus have separate middlewares, which will be executed before/after message is being handled.
+As middleware you can pass either name of class or already created service.
 
 ```yml
 messageBus:
-	commandBus:
-		middlewares:
-			before:
-				- Middleware\FirstMiddleware
-				- @messageBus.secondMiddleware
-			after:
-				- Middleware\LastMiddleware
+    commandBus:
+        middlewares:
+            before:
+                - Middleware\FirstMiddleware
+                - @instantiatedMiddleware
+            after:
+                - Middleware\LastMiddleware
 
 services:
-    messageBus.secondMiddleware: Middleware\SecondMiddleware
+    instantiatedMiddleware: Middleware\SecondMiddleware
 ```
