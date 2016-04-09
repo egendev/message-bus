@@ -1,6 +1,7 @@
 {
 	"name": "egen/message-bus",
 	"description": "SimpleBus integration into Nette Framework",
+	"keywords": ["simple-bus", "message bus", "command bus", "event bus", "nette"],
 	"type": "library",
 	"license": "MIT",
 	"require": {
