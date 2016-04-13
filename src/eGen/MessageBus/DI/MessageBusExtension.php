@@ -77,14 +77,13 @@ class MessageBusExtension extends CompilerExtension
 				['@' . $this->prefix('serviceLocator'), 'get']
 			])->setAutowired(FALSE);
 
-		$config = Helpers::merge($this->getConfig(), $this->defaults);
+		$config = $this->getConfig();
 
-		if (array_key_exists(self::COMMAND_BUS, $this->getConfig())) {
-			$this->configureBus($builder, $config[self::COMMAND_BUS], self::COMMAND_BUS);
-		}
-
-		if (array_key_exists(self::EVENT_BUS, $this->getConfig())) {
-			$this->configureBus($builder, $config[self::EVENT_BUS], self::EVENT_BUS);
+		foreach([self::COMMAND_BUS, self::EVENT_BUS] as $bus) {
+			if (array_key_exists($bus, $config)) {
+				$config[$bus] = Helpers::merge($config[$bus], $this->defaults[$bus]);
+				$this->configureBus($builder, $config[$bus], $bus);
+			}
 		}
 
 		$this->config = $config;
@@ -92,7 +91,7 @@ class MessageBusExtension extends CompilerExtension
 
 	public function beforeCompile()
 	{
-		$buses = [self::COMMAND_BUS, self::EVENT_BUS];
+		$buses = array_keys($this->config);
 		$builder = $this->getContainerBuilder();
 
 		foreach($buses as $bus) {
