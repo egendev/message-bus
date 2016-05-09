@@ -83,9 +83,6 @@ class MessageBusExtension extends CompilerExtension
 	/** @var array */
 	private $messages = [];
 
-	/** @var array */
-	private $config = [];
-
 	public function loadConfiguration()
 	{
 		$builder = $this->getContainerBuilder();
