@@ -37,7 +37,8 @@ class MessageBusExtension extends CompilerExtension
 				'before' => [],
 				'after' => []
 			],
-			'autowire' => TRUE
+			'autowire' => TRUE,
+			'tag' => self::COMMAND_BUS . '.' . self::TAG_HANDLER,
 		],
 		self::EVENT_BUS => [
 			'bus' => Bus\EventBus::class,
@@ -46,7 +47,8 @@ class MessageBusExtension extends CompilerExtension
 				'before' => [],
 				'after' => []
 			],
-			'autowire' => TRUE
+			'autowire' => TRUE,
+			'tag' => self::EVENT_BUS . '.' . self::TAG_SUBSCRIBER,
 		],
 		self::QUERY_BUS => [
 			'bus' => Bus\QueryBus::class,
@@ -55,7 +57,8 @@ class MessageBusExtension extends CompilerExtension
 				'before' => [],
 				'after' => []
 			],
-			'autowire' => TRUE
+			'autowire' => TRUE,
+			'tag' => self::QUERY_BUS . '.' . self::QUERY_BUS,
 		],
 	];
 
@@ -79,6 +82,9 @@ class MessageBusExtension extends CompilerExtension
 
 	/** @var array */
 	private $messages = [];
+
+	/** @var array */
+	private $config = [];
 
 	public function loadConfiguration()
 	{
@@ -276,17 +282,7 @@ class MessageBusExtension extends CompilerExtension
 
 	private function getTagForResolver($bus)
 	{
-		$buses = [
-			self::COMMAND_BUS => self::TAG_HANDLER,
-			self::EVENT_BUS => self::TAG_SUBSCRIBER,
-			self::QUERY_BUS => self::TAG_HANDLER,
-		];
-
-		if(!array_key_exists($bus, $buses)) {
-			throw new UnsupportedBusException('Bus with name "' . $bus . '" is not supported by this extension.');
-		}
-
-		return $bus . '.' . $buses[$bus];
+		return $this->config[$bus]['tag'];
 	}
 
 }
