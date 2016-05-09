@@ -58,7 +58,7 @@ class MessageBusExtension extends CompilerExtension
 				'after' => []
 			],
 			'autowire' => TRUE,
-			'tag' => self::QUERY_BUS . '.' . self::QUERY_BUS,
+			'tag' => self::QUERY_BUS . '.' . self::TAG_HANDLER,
 		],
 	];
 
