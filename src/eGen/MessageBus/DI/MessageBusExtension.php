@@ -16,12 +16,14 @@ use SimpleBus\Message\CallableResolver;
 use SimpleBus\Message\Name\ClassBasedNameResolver;
 use eGen\MessageBus\MultipleHandlersFoundException;
 use eGen\MessageBus\UnsupportedBusException;
+use eGen\MessageBus\QueryBus\Handler\DelegatesToQueryHandlerMiddleware;
 
 class MessageBusExtension extends CompilerExtension
 {
 
 	const COMMAND_BUS = 'commandBus';
 	const EVENT_BUS = 'eventBus';
+	const QUERY_BUS = 'queryBus';
 
 	const TAG_HANDLER = 'handler';
 	const TAG_SUBSCRIBER = 'subscriber';
@@ -45,7 +47,16 @@ class MessageBusExtension extends CompilerExtension
 				'after' => []
 			],
 			'autowire' => TRUE
-		]
+		],
+		self::QUERY_BUS => [
+			'bus' => Bus\QueryBus::class,
+			'handlers' => [],
+			'middlewares' => [
+				'before' => [],
+				'after' => []
+			],
+			'autowire' => TRUE
+		],
 	];
 
 	private $classes = [
@@ -58,7 +69,12 @@ class MessageBusExtension extends CompilerExtension
 			'callableResolver' => CallableResolver\CallableCollection::class,
 			'messageResolver' => Subscriber\Resolver\NameBasedMessageSubscriberResolver::class,
 			'middleware' => Subscriber\NotifiesMessageSubscribersMiddleware::class
-		]
+		],
+		self::QUERY_BUS => [
+			'callableResolver' => CallableResolver\CallableMap::class,
+			'messageResolver' => Handler\Resolver\NameBasedMessageHandlerResolver::class,
+			'middleware' => DelegatesToQueryHandlerMiddleware::class,
+		],
 	];
 
 	/** @var array */
@@ -79,7 +95,7 @@ class MessageBusExtension extends CompilerExtension
 
 		$config = $this->getConfig();
 
-		foreach([self::COMMAND_BUS, self::EVENT_BUS] as $bus) {
+		foreach([self::COMMAND_BUS, self::EVENT_BUS, self::QUERY_BUS] as $bus) {
 			if (array_key_exists($bus, $config)) {
 				$config[$bus] = Helpers::merge($config[$bus], $this->defaults[$bus]);
 				$this->configureBus($builder, $config[$bus], $bus);
@@ -98,7 +114,7 @@ class MessageBusExtension extends CompilerExtension
 			$services = $builder->findByTag($this->getTagForResolver($bus));
 			foreach (array_keys($services) as $serviceName) {
 				$def = $builder->getDefinition($serviceName);
-				if ($bus === self::COMMAND_BUS) {
+				if ($bus === self::COMMAND_BUS || $bus === self::QUERY_BUS) {
 					$this->analyzeHandlerClass($def->getClass(), $serviceName, $bus);
 				} elseif($bus === self::EVENT_BUS) {
 					$this->analyzeSubscriberClass($def->getClass(), $serviceName, $bus);
@@ -168,7 +184,8 @@ class MessageBusExtension extends CompilerExtension
 	{
 		$buses = [
 			self::COMMAND_BUS => 'handlers',
-			self::EVENT_BUS => 'subscribers'
+			self::EVENT_BUS => 'subscribers',
+			self::QUERY_BUS => 'handlers'
 		];
 
 		if(!array_key_exists($bus, $buses)) {
@@ -261,7 +278,8 @@ class MessageBusExtension extends CompilerExtension
 	{
 		$buses = [
 			self::COMMAND_BUS => self::TAG_HANDLER,
-			self::EVENT_BUS => self::TAG_SUBSCRIBER
+			self::EVENT_BUS => self::TAG_SUBSCRIBER,
+			self::QUERY_BUS => self::TAG_HANDLER,
 		];
 
 		if(!array_key_exists($bus, $buses)) {
