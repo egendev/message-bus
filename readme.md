@@ -1,5 +1,6 @@
 eGen/MessageBus
 ======
+[![Build Status](https://travis-ci.org/egendev/message-bus.svg?branch=master)](https://travis-ci.org/egendev/message-bus)
 
 [SimpleBus/MessageBus](http://simplebus.github.io/MessageBus/doc/command_bus.html) integration into Nette Framework.
 

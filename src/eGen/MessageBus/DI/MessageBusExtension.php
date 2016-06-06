@@ -38,7 +38,7 @@ class MessageBusExtension extends CompilerExtension
 				'after' => []
 			],
 			'autowire' => TRUE,
-			'tag' => self::COMMAND_BUS . '.' . self::TAG_HANDLER,
+			'tag' => 'commandBus.handler',
 		],
 		self::EVENT_BUS => [
 			'bus' => Bus\EventBus::class,
@@ -48,7 +48,7 @@ class MessageBusExtension extends CompilerExtension
 				'after' => []
 			],
 			'autowire' => TRUE,
-			'tag' => self::EVENT_BUS . '.' . self::TAG_SUBSCRIBER,
+			'tag' => 'eventBus.subscriber'
 		],
 		self::QUERY_BUS => [
 			'bus' => Bus\QueryBus::class,
@@ -58,7 +58,7 @@ class MessageBusExtension extends CompilerExtension
 				'after' => []
 			],
 			'autowire' => TRUE,
-			'tag' => self::QUERY_BUS . '.' . self::TAG_HANDLER,
+			'tag' => 'queryBus.handler'
 		],
 	];
 
@@ -146,9 +146,9 @@ class MessageBusExtension extends CompilerExtension
 
 		$def = $builder->addDefinition($this->prefix($bus));
 
-		list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+		list($def->factory) = Nette\DI\Compiler::filterArguments([
 			is_string($config['bus']) ? new Nette\DI\Statement($config['bus']) : $config['bus']
-		));
+		]);
 
 		list($class) = (array)$builder->normalizeEntity($def->factory->entity);
 		if (class_exists($class)) {
@@ -200,9 +200,9 @@ class MessageBusExtension extends CompilerExtension
 		foreach ($config[$buses[$bus]] as $resolver) {
 			$def = $builder->addDefinition($this->prefix($bus . '.' . md5(Nette\Utils\Json::encode($resolver))));
 
-			list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+			list($def->factory) = Nette\DI\Compiler::filterArguments([
 				is_string($resolver) ? new Nette\DI\Statement($resolver) : $resolver
-			));
+			]);
 
 			list($class) = (array)$builder->normalizeEntity($def->factory->entity);
 			if (class_exists($class)) {
@@ -217,9 +217,9 @@ class MessageBusExtension extends CompilerExtension
 	{
 		$def = $builder->addDefinition($this->prefix($bus . '.middleware.' . md5(Nette\Utils\Json::encode($middleware))));
 
-		list($def->factory) = Nette\DI\Compiler::filterArguments(array(
+		list($def->factory) = Nette\DI\Compiler::filterArguments([
 			is_string($middleware) ? new Nette\DI\Statement($middleware) : $middleware
-		));
+		]);
 
 		list($class) = (array) $builder->normalizeEntity($def->factory->entity);
 		if (class_exists($class)) {
