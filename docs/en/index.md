@@ -16,7 +16,7 @@ And then you should add the extension in your config.neon file.
 
 ```yml
 extensions:
-    messagebus: eGen\MessageBus\DI\MessageBusExtension
+    messageBus: eGen\MessageBus\DI\MessageBusExtension
 ```
 
 ## Configuration and Usage
