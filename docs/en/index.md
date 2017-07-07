@@ -115,6 +115,7 @@ EventBus resolves events, so you will need some subscriber to resolve your event
 
 ```yml
 services:
+    - eGen\MessageBus\Bus\CommandBus
     - class: App\Model\Subscribers\SeoMailListener
       tags: [eventBus.subscriber]
 ```
