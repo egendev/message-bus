@@ -44,7 +44,8 @@ $compiler->addConfig([
 	]
 ]);
 
-eval($compiler->compile([], 'GeneratedContainer'));
+$compiler->setClassName('GeneratedContainer');
+eval($compiler->compile());
 
 $container = new GeneratedContainer();
 $commandBus = $container->getByType(CommandBus::class);

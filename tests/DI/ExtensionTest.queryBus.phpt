@@ -45,7 +45,8 @@ $compiler->addConfig([
 	]
 ]);
 
-eval($compiler->compile([], 'GeneratedContainer'));
+$compiler->setClassName('GeneratedContainer');
+eval($compiler->compile());
 
 $container = new GeneratedContainer();
 $queryBus = $container->getByType(QueryBus::class);
