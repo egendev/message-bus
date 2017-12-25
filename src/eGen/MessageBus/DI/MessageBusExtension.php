@@ -97,6 +97,9 @@ class MessageBusExtension extends CompilerExtension
 
 		$config = $this->getConfig();
 
+		$builder->addDefinition($this->prefix('messageNameResolver'))
+			->setFactory(ClassBasedNameResolver::class);
+
 		foreach([self::COMMAND_BUS, self::EVENT_BUS, self::QUERY_BUS] as $bus) {
 			if (array_key_exists($bus, $config)) {
 				$config[$bus] = Helpers::merge($config[$bus], $this->defaults[$bus]);
@@ -139,9 +142,10 @@ class MessageBusExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix($bus . '.handlerResolver'))
 			->setFactory($this->classes[$bus]['messageResolver'], [
-				new Statement(ClassBasedNameResolver::class),
+				'@' . $this->prefix('messageNameResolver'),
 				$handlersMap
-			])->setAutowired(FALSE);
+			])
+			->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix($bus))
 			->setFactory($config['bus']);
