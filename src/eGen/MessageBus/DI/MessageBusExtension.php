@@ -261,7 +261,7 @@ class MessageBusExtension extends CompilerExtension
 		$ref = new \ReflectionClass($className);
 
 		foreach($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-			if(strpos($method->getName(), '__') === 0) {
+			if(strpos($method->getName(), '__') === 0 && $method->getName() !== '__invoke') {
 				continue;
 			}
 
