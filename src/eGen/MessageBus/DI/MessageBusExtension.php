@@ -87,11 +87,11 @@ class MessageBusExtension extends CompilerExtension
 		$builder = $this->getContainerBuilder();
 
 		$builder->addDefinition($this->prefix('serviceLocator'))
-			->setClass(ServiceLocator::class)
+			->setFactory(ServiceLocator::class)
 			->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix('callableResolver'))
-			->setClass(CallableResolver\ServiceLocatorAwareCallableResolver::class, [
+			->setFactory(CallableResolver\ServiceLocatorAwareCallableResolver::class, [
 				['@' . $this->prefix('serviceLocator'), 'get']
 			])->setAutowired(FALSE);
 
@@ -117,9 +117,9 @@ class MessageBusExtension extends CompilerExtension
 			foreach (array_keys($services) as $serviceName) {
 				$def = $builder->getDefinition($serviceName);
 				if ($bus === self::COMMAND_BUS || $bus === self::QUERY_BUS) {
-					$this->analyzeHandlerClass($def->getClass(), $serviceName, $bus);
+					$this->analyzeHandlerClass($def->getType(), $serviceName, $bus);
 				} elseif($bus === self::EVENT_BUS) {
-					$this->analyzeSubscriberClass($def->getClass(), $serviceName, $bus);
+					$this->analyzeSubscriberClass($def->getType(), $serviceName, $bus);
 				}
 				$def->setAutowired(FALSE);
 			}
@@ -133,26 +133,18 @@ class MessageBusExtension extends CompilerExtension
 
 	private function configureBus(ContainerBuilder $builder, array $config, $bus)
 	{
-		$builder->addDefinition($this->prefix($bus . '.messageHandlers'))
-			->setClass($this->classes[$bus]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
+		$handlersMap = $builder->addDefinition($this->prefix($bus . '.messageHandlers'))
+			->setFactory($this->classes[$bus]['callableResolver'], [[], '@' . $this->prefix('callableResolver')])
 			->setAutowired(FALSE);
 
 		$builder->addDefinition($this->prefix($bus . '.handlerResolver'))
-			->setClass($this->classes[$bus]['messageResolver'], [
+			->setFactory($this->classes[$bus]['messageResolver'], [
 				new Statement(ClassBasedNameResolver::class),
-				'@' . $this->prefix($bus . '.messageHandlers')
+				$handlersMap
 			])->setAutowired(FALSE);
 
-		$def = $builder->addDefinition($this->prefix($bus));
-
-		list($def->factory) = Nette\DI\Compiler::filterArguments([
-			is_string($config['bus']) ? new Nette\DI\Statement($config['bus']) : $config['bus']
-		]);
-
-		list($class) = (array)$builder->normalizeEntity($def->factory->entity);
-		if (class_exists($class)) {
-			$def->class = $class;
-		}
+		$builder->addDefinition($this->prefix($bus))
+			->setFactory($config['bus']);
 
 		$this->configureMiddlewares($builder, $config, $bus);
 		$this->configureResolvers($builder, $config, $bus);
