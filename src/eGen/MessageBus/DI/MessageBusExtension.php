@@ -3,7 +3,6 @@
 namespace eGen\MessageBus\DI;
 
 use Nette;
-use Nette\Reflection;
 use Nette\DI\Statement;
 use eGen\MessageBus\Bus;
 use Nette\DI\Config\Helpers;
@@ -233,7 +232,7 @@ class MessageBusExtension extends CompilerExtension
 
 	private function analyzeHandlerClass($className, $serviceName, $bus)
 	{
-		$ref = new Reflection\ClassType($className);
+		$ref = new \ReflectionClass($className);
 
 		foreach($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
 			if(strpos($method->getName(), '__') === 0) {
@@ -245,7 +244,7 @@ class MessageBusExtension extends CompilerExtension
 			}
 
 			$parameters = $method->getParameters();
-			$message = $parameters[0]->className;
+			$message = $parameters[0]->getType()->getName();
 
 			if(isset($this->messages[$bus][$message])) {
 				throw new MultipleHandlersFoundException(
@@ -259,7 +258,7 @@ class MessageBusExtension extends CompilerExtension
 
 	private function analyzeSubscriberClass($className, $serviceName, $bus)
 	{
-		$ref = new Reflection\ClassType($className);
+		$ref = new \ReflectionClass($className);
 
 		foreach($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
 			if(strpos($method->getName(), '__') === 0) {
@@ -271,7 +270,7 @@ class MessageBusExtension extends CompilerExtension
 			}
 
 			$parameters = $method->getParameters();
-			$message = $parameters[0]->className;
+			$message = $parameters[0]->getType()->getName();
 
 			$this->messages[$bus][$message][] = "$serviceName::$method->name";
 		}

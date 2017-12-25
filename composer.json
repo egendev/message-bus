@@ -8,8 +8,7 @@
 		"php": ">=5.5",
 		"nette/di": "~2.3",
 		"nette/utils": "~2.3",
-		"simple-bus/message-bus": "~2.2",
-		"nette/reflection": "~2.2"
+		"simple-bus/message-bus": "~2.2"
 	},
 	"require-dev": {
 		"nette/tester": "~1.7"
