@@ -2,7 +2,6 @@
 
 namespace eGen\MessageBus\DI;
 
-use Nette;
 use Nette\DI\Statement;
 use eGen\MessageBus\Bus;
 use Nette\DI\Config\Helpers;
@@ -14,7 +13,6 @@ use eGen\MessageBus\ServiceLocator;
 use SimpleBus\Message\CallableResolver;
 use SimpleBus\Message\Name\ClassBasedNameResolver;
 use eGen\MessageBus\MultipleHandlersFoundException;
-use eGen\MessageBus\UnsupportedBusException;
 use eGen\MessageBus\QueryBus\Handler\DelegatesToQueryHandlerMiddleware;
 
 class MessageBusExtension extends CompilerExtension
