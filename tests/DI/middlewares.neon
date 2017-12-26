@@ -1,0 +1,20 @@
+extensions:
+    messageBus: eGen\MessageBus\DI\MessageBusExtension
+
+messageBus:
+    commandBus:
+        middlewares:
+            # Try service reference and class name
+            before:
+                - Fixtures\BeforeMiddleware(true)
+                - @beforeMiddleware
+            after:
+                - Fixtures\AfterMiddleware
+                - @afterMiddleware
+
+services:
+    beforeMiddleware: Fixtures\BeforeMiddleware(true)
+    afterMiddleware: Fixtures\AfterMiddleware
+
+di:
+    debugger: false

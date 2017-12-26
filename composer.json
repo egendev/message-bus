@@ -11,7 +11,10 @@
 		"simple-bus/message-bus": "~2.2"
 	},
 	"require-dev": {
-		"nette/tester": "~1.7"
+		"nette/tester": "~1.7",
+		"phpunit/phpunit": "^6.5",
+		"nette/bootstrap": "^2.4",
+		"nette/robot-loader": "^3.0"
 	},
 	"authors": [
 		{

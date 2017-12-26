@@ -161,6 +161,23 @@ class MessageBusExtension extends CompilerExtension
 
 		$messageBus = $builder->getDefinition($this->prefix($bus));
 
+		$delegatingMiddleware = new Statement(
+			$this->classes[$bus]['middleware'],
+			['@' . $this->prefix($bus . '.handlerResolver')]
+		);
+
+		$middlewares = array_merge(
+			$config['middlewares']['before'],
+			[$delegatingMiddleware],
+			$config['middlewares']['after']
+		);
+
+		foreach($middlewares as $index => $middleware) {
+			if(is_string($middleware)) {
+				$middleware = $this->getMiddlewareDefinition($builder, $middleware, $bus, $index);
+			}
+		}
+
 		foreach ($config['middlewares']['before'] as $middleware) {
 			$def = $this->getMiddlewareDefinition($builder, $middleware, $bus);
 			$messageBus->addSetup('appendMiddleware', [$def]);
@@ -208,9 +225,12 @@ class MessageBusExtension extends CompilerExtension
 		}
 	}
 
-	private function getMiddlewareDefinition(ContainerBuilder $builder, $middleware, $bus)
+	private function getMiddlewareDefinition(ContainerBuilder $builder, string $middleware, string $busName, int $index)
 	{
-		$def = $builder->addDefinition($this->prefix($bus . '.middleware.' . md5(Nette\Utils\Json::encode($middleware))));
+		return $builder->addDefinition($this->prefix($busName . '.middleware' . $index))
+			->setFactory($middleware)
+			->setAutowired(FALSE);
+
 
 		list($def->factory) = Nette\DI\Compiler::filterArguments([
 			is_string($middleware) ? new Nette\DI\Statement($middleware) : $middleware
