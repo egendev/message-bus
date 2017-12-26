@@ -12,7 +12,7 @@ use SimpleBus\Message\Subscriber;
 use eGen\MessageBus\ServiceLocator;
 use SimpleBus\Message\CallableResolver;
 use SimpleBus\Message\Name\ClassBasedNameResolver;
-use eGen\MessageBus\MultipleHandlersFoundException;
+use eGen\MessageBus\Exceptions\MultipleHandlersFoundException;
 use eGen\MessageBus\QueryBus\Handler\DelegatesToQueryHandlerMiddleware;
 
 class MessageBusExtension extends CompilerExtension

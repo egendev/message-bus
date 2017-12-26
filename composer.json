@@ -25,10 +25,7 @@
 	"autoload": {
 		"psr-0": {
 			"eGen\\MessageBus": "src/"
-		},
-		"classmap": [
-			"src/eGen/MessageBus/exceptions.php"
-		]
+		}
 	},
 	"minimum-stability": "stable"
 }
