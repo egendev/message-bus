@@ -2,16 +2,7 @@ eGen/MessageBus
 ======
 [![Build Status](https://travis-ci.org/egendev/message-bus.svg?branch=master)](https://travis-ci.org/egendev/message-bus)
 
-[SimpleBus/MessageBus](http://simplebus.github.io/MessageBus/doc/command_bus.html) integration into Nette Framework.
-
-Requirements
-------------
-
-eGen/MessageBus requires PHP 5.5 or higher.
-
-- [nette/di](https://github.com/nette/di) >= 2.3
-- [nette/utils](https://github.com/nette/utils) >= 2.3
-
+PHP 7+ integration[SimpleBus/MessageBus] of (http://simplebus.github.io/MessageBus/doc/command_bus.html) to Nette Framework.
 
 Installation
 ------------
