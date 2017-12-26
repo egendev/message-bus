@@ -74,7 +74,7 @@ class MessageBusExtension extends CompilerExtension
 		],
 	];
 
-	/** @var array */
+	/** @var array<string, array<string>> */
 	private $messages = [];
 
 	public function loadConfiguration()
@@ -221,7 +221,7 @@ class MessageBusExtension extends CompilerExtension
 		}
 	}
 
-	private function getTagForResolver($bus)
+	private function getTagForResolver(string $bus): string
 	{
 		return $this->config[$bus]['tag'];
 	}
