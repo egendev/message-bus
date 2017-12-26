@@ -31,7 +31,6 @@ class MessageBusExtension extends CompilerExtension
 	private $defaults = [
 		self::COMMAND_BUS => [
 			'bus' => Bus\CommandBus::class,
-			'handlers' => [],
 			'middlewares' => [
 				'before' => [],
 				'after' => []
@@ -41,7 +40,6 @@ class MessageBusExtension extends CompilerExtension
 		],
 		self::EVENT_BUS => [
 			'bus' => Bus\EventBus::class,
-			'subscribers' => [],
 			'middlewares' => [
 				'before' => [],
 				'after' => []
@@ -51,7 +49,6 @@ class MessageBusExtension extends CompilerExtension
 		],
 		self::QUERY_BUS => [
 			'bus' => Bus\QueryBus::class,
-			'handlers' => [],
 			'middlewares' => [
 				'before' => [],
 				'after' => []
@@ -151,7 +148,6 @@ class MessageBusExtension extends CompilerExtension
 			->setFactory($config['bus']);
 
 		$this->configureMiddlewares($builder, $config, $bus);
-		$this->configureResolvers($builder, $config, $bus);
 	}
 
 	private function configureMiddlewares(ContainerBuilder $builder, array $config, string $busName)
@@ -178,30 +174,6 @@ class MessageBusExtension extends CompilerExtension
 			}
 
 			$messageBus->addSetup('appendMiddleware', [$middleware]);
-		}
-	}
-
-	private function configureResolvers(ContainerBuilder $builder, array $config, string $busName)
-	{
-		$buses = [
-			self::COMMAND_BUS => 'handlers',
-			self::EVENT_BUS => 'subscribers',
-			self::QUERY_BUS => 'handlers'
-		];
-
-		foreach ($config[$buses[$busName]] as $index => $resolver) {
-			$def = $builder->addDefinition($this->prefix($busName . '.resolver' . $index));
-
-			list($def->factory) = Nette\DI\Compiler::filterArguments([
-				is_string($resolver) ? new Nette\DI\Statement($resolver) : $resolver
-			]);
-
-			list($class) = (array)$builder->normalizeEntity($def->factory->entity);
-			if (class_exists($class)) {
-				$def->class = $class;
-			}
-
-			$def->addTag($this->getTagForResolver($busName));
 		}
 	}
 
