@@ -129,7 +129,7 @@ class MessageBusExtension extends CompilerExtension
 
 			$def = $builder->getDefinition($this->prefix($bus . '.messageHandlers'));
 			$args = $def->getFactory()->arguments;
-			$args[0] = isset($this->messages[$bus]) ? $this->messages[$bus] : [];
+			$args[0] = $this->messages[$bus] ?? [];
 			$def->setArguments($args);
 		}
 	}
@@ -226,7 +226,7 @@ class MessageBusExtension extends CompilerExtension
 		return $def;
 	}
 
-	private function analyzeHandlerClass($className, $serviceName, $bus)
+	private function analyzeHandlerClass(string $className, string $serviceName, string $busName)
 	{
 		$ref = new \ReflectionClass($className);
 
@@ -242,17 +242,17 @@ class MessageBusExtension extends CompilerExtension
 			$parameters = $method->getParameters();
 			$message = $parameters[0]->getType()->getName();
 
-			if(isset($this->messages[$bus][$message])) {
+			if(isset($this->messages[$busName][$message])) {
 				throw new MultipleHandlersFoundException(
 					'There are multiple handlers for message ' . $message . '. There must be only one!'
 				);
 			}
 
-			$this->messages[$bus][$message] = "$serviceName::$method->name";
+			$this->messages[$busName][$message] = "$serviceName::$method->name";
 		}
 	}
 
-	private function analyzeSubscriberClass($className, $serviceName, $bus)
+	private function analyzeSubscriberClass(string $className, string $serviceName, string $busName)
 	{
 		$ref = new \ReflectionClass($className);
 
@@ -268,7 +268,7 @@ class MessageBusExtension extends CompilerExtension
 			$parameters = $method->getParameters();
 			$message = $parameters[0]->getType()->getName();
 
-			$this->messages[$bus][$message][] = "$serviceName::$method->name";
+			$this->messages[$busName][$message][] = "$serviceName::$method->name";
 		}
 	}
 
