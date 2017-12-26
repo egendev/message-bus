@@ -15,11 +15,7 @@ class ServiceLocator
 		$this->context = $context;
 	}
 
-	/**
-	 * @param string $name
-	 * @return callable
-	 */
-	public function get($name)
+	public function get(string $name): callable
 	{
 		$explode = explode('::', $name);
 		$service = $this->context->getService($explode[0]);
