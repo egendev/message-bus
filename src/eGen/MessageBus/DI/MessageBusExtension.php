@@ -114,6 +114,7 @@ class MessageBusExtension extends CompilerExtension
 			$services = $builder->findByTag($this->getTagForResolver($bus));
 			foreach (array_keys($services) as $serviceName) {
 				$def = $builder->getDefinition($serviceName);
+
 				if ($bus === self::COMMAND_BUS || $bus === self::QUERY_BUS) {
 					$this->analyzeHandlerClass($def->getType(), $serviceName, $bus);
 				} elseif($bus === self::EVENT_BUS) {
@@ -177,48 +178,50 @@ class MessageBusExtension extends CompilerExtension
 
 	private function analyzeHandlerClass(string $className, string $serviceName, string $busName)
 	{
-		$ref = new \ReflectionClass($className);
+		$handleMethods = $this->getAllHandleMethods($className, $serviceName);
 
-		foreach($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-			if(strpos($method->getName(), '__') === 0) {
-				continue;
-			}
-
-			if(count($method->getParameters()) !== 1) {
-				continue;
-			}
-
-			$parameters = $method->getParameters();
-			$message = $parameters[0]->getType()->getName();
-
-			if(isset($this->messages[$busName][$message])) {
+		foreach ($handleMethods as $method => $messageName) {
+			if (isset($this->messages[$busName][$messageName])) {
 				throw new MultipleHandlersFoundException(
-					'There are multiple handlers for message ' . $message . '. There must be only one!'
+					'There are multiple handlers for message ' . $messageName . '. There must be only one!'
 				);
 			}
 
-			$this->messages[$busName][$message] = "$serviceName::$method->name";
+			$this->messages[$busName][$messageName] = $method;
 		}
 	}
 
 	private function analyzeSubscriberClass(string $className, string $serviceName, string $busName)
 	{
+		$handleMethods = $this->getAllHandleMethods($className, $serviceName);
+
+		foreach ($handleMethods as $method => $messageName) {
+			$this->messages[$busName][$messageName][] = $method;
+		}
+	}
+
+	private function getAllHandleMethods(string $className, string $serviceName): array
+	{
 		$ref = new \ReflectionClass($className);
 
-		foreach($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-			if(strpos($method->getName(), '__') === 0 && $method->getName() !== '__invoke') {
+		$handlers = [];
+
+		foreach ($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+			if (strpos($method->getName(), '__') === 0 && $method->getName() !== '__invoke') {
 				continue;
 			}
 
-			if(count($method->getParameters()) !== 1) {
+			if (count($method->getParameters()) !== 1) {
 				continue;
 			}
 
 			$parameters = $method->getParameters();
 			$message = $parameters[0]->getType()->getName();
 
-			$this->messages[$busName][$message][] = "$serviceName::$method->name";
+			$handlers["$serviceName::$method->name"] = $message;
 		}
+
+		return $handlers;
 	}
 
 	private function getTagForResolver(string $bus): string
