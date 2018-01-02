@@ -120,7 +120,6 @@ class MessageBusExtension extends CompilerExtension
 				} elseif($bus === self::EVENT_BUS) {
 					$this->analyzeSubscriberClass($def->getType(), $serviceName, $bus);
 				}
-				$def->setAutowired(FALSE);
 			}
 
 			$def = $builder->getDefinition($this->prefix($bus . '.messageHandlers'));
