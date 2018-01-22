@@ -1,0 +1,6 @@
+messageBus:
+    queryBus:
+
+services:
+    - class: Fixtures\QueryHandler
+      tags: [ queryBus.handler ]

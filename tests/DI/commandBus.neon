@@ -1,0 +1,6 @@
+messageBus:
+    commandBus:
+
+services:
+    - class: Fixtures\CommandHandler
+      tags: [ commandBus.handler ]

@@ -1,0 +1,5 @@
+extensions:
+    messageBus: eGen\MessageBus\DI\MessageBusExtension
+
+di:
+    debugger: false

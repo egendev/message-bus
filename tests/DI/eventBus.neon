@@ -1,0 +1,11 @@
+messageBus:
+    eventBus:
+
+services:
+    subscriber1:
+        class: Fixtures\Subscriber
+        tags: [ eventBus.subscriber ]
+
+    subscriber2:
+        class: Fixtures\Subscriber
+        tags: [ eventBus.subscriber ]

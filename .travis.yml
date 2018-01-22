@@ -5,7 +5,7 @@ php:
     - 7.0
 
 script:
-    - vendor/bin/tester tests -s $coverage
+    - vendor/bin/phpunit $COVERAGE
     - php temp/code-checker/src/code-checker.php --short-arrays
 
 after_failure:
@@ -13,10 +13,9 @@ after_failure:
     - for i in $(find tests -name \*.actual); do echo "--- $i"; cat $i; echo; echo; done
 
 before_script:
-    # Install Nette Tester & Code Checker
     - travis_retry composer install --no-interaction --prefer-dist
     - travis_retry composer create-project nette/code-checker temp/code-checker ~2.5 --no-interaction
-    - if [ $TRAVIS_PHP_VERSION == "7.0" ]; then coverage="-p phpdbg --coverage ./coverage.xml --coverage-src ./src"; fi
+    - if [ $TRAVIS_PHP_VERSION == "7.0" ]; then COVERAGE="--coverage-clover build/logs/clover.xml"; fi
 
 after_script:
     # Report Code Coverage
