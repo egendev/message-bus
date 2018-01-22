@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace eGen\MessageBus\Bus;
 
 use eGen\MessageBus\QueryBus\IMiddleware;

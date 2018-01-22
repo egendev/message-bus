@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace eGen\MessageBus\DI;
 
 use Nette\DI\Statement;
@@ -114,6 +116,7 @@ class MessageBusExtension extends CompilerExtension
 			$services = $builder->findByTag($this->getTagForResolver($bus));
 			foreach (array_keys($services) as $serviceName) {
 				$def = $builder->getDefinition($serviceName);
+				$serviceName = (string) $serviceName; // service name is int for anonymous services
 
 				if ($bus === self::COMMAND_BUS || $bus === self::QUERY_BUS) {
 					$this->analyzeHandlerClass($def->getType(), $serviceName, $bus);

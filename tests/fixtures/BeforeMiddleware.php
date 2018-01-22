@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fixtures;
 
 use SimpleBus\Message\Bus\Middleware\MessageBusMiddleware;
