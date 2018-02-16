@@ -48,7 +48,9 @@ $compiler->addConfig([
 	]
 ]);
 
-eval($compiler->compile([], 'GeneratedContainer'));
+$compiler->setClassName('GeneratedContainer');
+
+eval($compiler->compile());
 
 $container = new GeneratedContainer();
 $eventBus = $container->getByType(EventBus::class);

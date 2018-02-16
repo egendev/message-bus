@@ -5,10 +5,10 @@
 	"type": "library",
 	"license": "MIT",
 	"require": {
-		"php": ">=5.5",
+		"php": ">=5.6",
 		"nette/di": "~2.3",
 		"nette/utils": "~2.3",
-		"simple-bus/message-bus": "~2.2",
+		"simple-bus/message-bus": "~2.2 || ~3.0",
 		"nette/reflection": "~2.2"
 	},
 	"require-dev": {
