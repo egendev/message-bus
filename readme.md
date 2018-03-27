@@ -1,6 +1,7 @@
 eGen/MessageBus
 ======
 [![Build Status](https://travis-ci.org/egendev/message-bus.svg?branch=master)](https://travis-ci.org/egendev/message-bus)
+[![Coverage Status](https://coveralls.io/repos/github/egendev/message-bus/badge.svg?branch=master)](https://coveralls.io/github/egendev/message-bus?branch=master)
 
 PHP 7+ integration[SimpleBus/MessageBus] of (http://simplebus.github.io/MessageBus/doc/command_bus.html) to Nette Framework.
 
