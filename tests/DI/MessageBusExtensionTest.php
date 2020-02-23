@@ -84,11 +84,6 @@ class MessageBusExtensionTest extends TestCase
 	{
 		$configurator = new Configurator();
 		$configurator->setTempDirectory(__DIR__ . '/../temp');
-		$configurator->setDebugMode(true);
-
-		$robotLoader = $configurator->createRobotLoader();
-		$robotLoader->addDirectory(__DIR__ . '/../fixtures');
-		$robotLoader->register();
 
 		$configurator->addConfig(__DIR__ . '/base.neon');
 		$configurator->addConfig($configFile);
