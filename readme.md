@@ -20,4 +20,4 @@ $ composer require egen/message-bus
 Documentation
 ------------
 
-Learn more in the [documentation](https://github.com/egendev/message-bus/blob/master/docs/en/index.md).
+Learn more in the [documentation](https://github.com/egendev/message-bus/blob/2.0/docs/en/index.md).
