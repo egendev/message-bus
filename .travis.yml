@@ -10,7 +10,6 @@ cache:
 php:
   - 7.1
   - 7.2
-  - nightly
 
 matrix:
   include:
@@ -32,6 +31,3 @@ script:
 
 after_script:
   - if [ "$COVERAGE" != "" ]; then vendor/bin/coveralls --verbose || true; fi
-
-after_failure:
-  - php: nightly
