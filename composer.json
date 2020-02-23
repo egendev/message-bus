@@ -6,7 +6,7 @@
 	"license": "MIT",
 	"require": {
 		"php": "^7.1",
-		"nette/di": "^2.4",
+		"nette/di": "^2.4.10",
 		"nette/utils": "~2.3",
 		"simple-bus/message-bus": "^3.0"
 	},
